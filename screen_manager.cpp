@@ -2,6 +2,9 @@
 #include "mqtt_handler.h"
 #include <Arduino.h>
 
+// Declare your custom font
+extern const lv_font_t montserrat_96;
+
 extern MQTTHandler mqttHandler;
 
 ScreenManager* ScreenManager::instance = nullptr;
@@ -17,7 +20,7 @@ void ScreenManager::init() {
     setupGestureHandling();
     
     lv_scr_load(screenContainer);
-    showScreen(SCREEN_LIGHT);
+    showScreen(SCREEN_HVAC);
     
     Serial.println("Screen manager initialized with gesture support");
 }
@@ -43,24 +46,24 @@ void ScreenManager::createLightScreen() {
     lv_obj_set_style_pad_all(screens[SCREEN_LIGHT], 0, 0);
     lv_obj_clear_flag(screens[SCREEN_LIGHT], LV_OBJ_FLAG_SCROLLABLE);
     
-    // Create HUGE "B" using multiple labels to form ASCII art
-    createLabel(screens[SCREEN_LIGHT], "BBB", 20, 40);
-    createLabel(screens[SCREEN_LIGHT], "B  B", 20, 55);
-    createLabel(screens[SCREEN_LIGHT], "BBB", 20, 70);
-    createLabel(screens[SCREEN_LIGHT], "B  B", 20, 85);
-    createLabel(screens[SCREEN_LIGHT], "BBB", 20, 100);
+    // Large "B" label for brightness
+    lv_obj_t* brightnessLabel = lv_label_create(screens[SCREEN_LIGHT]);
+    lv_label_set_text(brightnessLabel, "B");
+    lv_obj_set_pos(brightnessLabel, 20, 50);
+    lv_obj_set_style_text_color(brightnessLabel, lv_color_white(), 0);
+    lv_obj_set_style_text_font(brightnessLabel, &lv_font_montserrat_48, 0);
     
     // Long brightness bar
     lightElements.brightnessBar = createBar(screens[SCREEN_LIGHT], 90, 50, 430, MIN_BRIGHTNESS, MAX_BRIGHTNESS, 50);
     lv_obj_add_event_cb(lightElements.brightnessBar, brightnessBarEvent, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(lightElements.brightnessBar, brightnessBarEvent, LV_EVENT_PRESSING, this);
     
-    // Create HUGE "C" using multiple labels to form ASCII art
-    createLabel(screens[SCREEN_LIGHT], "CCC", 20, 130);
-    createLabel(screens[SCREEN_LIGHT], "C", 20, 145);
-    createLabel(screens[SCREEN_LIGHT], "C", 20, 160);
-    createLabel(screens[SCREEN_LIGHT], "C", 20, 175);
-    createLabel(screens[SCREEN_LIGHT], "CCC", 20, 190);
+    // Large "C" label for color temperature
+    lv_obj_t* colorTempLabel = lv_label_create(screens[SCREEN_LIGHT]);
+    lv_label_set_text(colorTempLabel, "C");
+    lv_obj_set_pos(colorTempLabel, 20, 140);
+    lv_obj_set_style_text_color(colorTempLabel, lv_color_white(), 0);
+    lv_obj_set_style_text_font(colorTempLabel, &lv_font_montserrat_48, 0);
     
     // Long color temp bar
     lightElements.colorTempBar = createBar(screens[SCREEN_LIGHT], 90, 140, 430, MIN_COLOR_TEMP, MAX_COLOR_TEMP, 4000);
@@ -74,7 +77,7 @@ void ScreenManager::createLightScreen() {
     lv_obj_add_flag(lightElements.colorTempLabel, LV_OBJ_FLAG_HIDDEN);
     lightElements.powerButton = nullptr;
     
-    Serial.println("Light screen created with HUGE ASCII art B and C");
+    Serial.println("Light screen created with large B and C text");
 }
 
 void ScreenManager::createHVACScreen() {
@@ -85,6 +88,11 @@ void ScreenManager::createHVACScreen() {
     lv_obj_set_style_pad_all(screens[SCREEN_HVAC], 0, 0);
     lv_obj_clear_flag(screens[SCREEN_HVAC], LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(screens[SCREEN_HVAC], LV_OBJ_FLAG_HIDDEN);
+    
+    // Initialize target temperature to 22 if not set
+    if (hvacState.targetTemp < 16 || hvacState.targetTemp > 27) {
+        hvacState.targetTemp = 22.0;
+    }
     
     // OFF button at TOP LEFT
     hvacElements.offButton = createButton(screens[SCREEN_HVAC], "OFF", 150, 10, 100, 50);
@@ -100,39 +108,32 @@ void ScreenManager::createHVACScreen() {
     lv_obj_set_style_text_font(lv_obj_get_child(hvacElements.coolButton, 0), &lv_font_montserrat_22, 0);
     lv_obj_add_event_cb(hvacElements.coolButton, hvacCoolButtonEvent, LV_EVENT_CLICKED, this);
     
-    // MINUS button on LEFT SIDE - FULL HEIGHT with BIG minus
-    hvacElements.tempDownButton = createButton(screens[SCREEN_HVAC], "---", 5, 70, 120, 165);
+    // MINUS button on LEFT SIDE - TRUE FULL SCREEN HEIGHT
+    hvacElements.tempDownButton = createButton(screens[SCREEN_HVAC], "-", 5, 5, 120, 230);
     lv_obj_set_style_bg_color(hvacElements.tempDownButton, lv_color_hex(0x404040), 0);
     lv_obj_set_style_text_color(lv_obj_get_child(hvacElements.tempDownButton, 0), lv_color_white(), 0);
-    lv_obj_set_style_text_font(lv_obj_get_child(hvacElements.tempDownButton, 0), &lv_font_montserrat_22, 0);
+    lv_obj_set_style_text_font(lv_obj_get_child(hvacElements.tempDownButton, 0), &montserrat_96, 0);
     lv_obj_add_event_cb(hvacElements.tempDownButton, hvacTempDownButtonEvent, LV_EVENT_CLICKED, this);
     
-    // PLUS button on RIGHT SIDE - FULL HEIGHT with BIG plus
-    hvacElements.tempUpButton = createButton(screens[SCREEN_HVAC], "+++", 411, 70, 120, 165);
+    // PLUS button on RIGHT SIDE - TRUE FULL SCREEN HEIGHT
+    hvacElements.tempUpButton = createButton(screens[SCREEN_HVAC], "+", 411, 5, 120, 230);
     lv_obj_set_style_bg_color(hvacElements.tempUpButton, lv_color_hex(0x404040), 0);
     lv_obj_set_style_text_color(lv_obj_get_child(hvacElements.tempUpButton, 0), lv_color_white(), 0);
-    lv_obj_set_style_text_font(lv_obj_get_child(hvacElements.tempUpButton, 0), &lv_font_montserrat_22, 0);
+    lv_obj_set_style_text_font(lv_obj_get_child(hvacElements.tempUpButton, 0), &montserrat_96, 0);
     lv_obj_add_event_cb(hvacElements.tempUpButton, hvacTempUpButtonEvent, LV_EVENT_CLICKED, this);
     
-    // Create HUGE "22" using ASCII art - First digit "2"
-    createLabel(screens[SCREEN_HVAC], "222", 180, 100);
-    createLabel(screens[SCREEN_HVAC], "  2", 180, 115);
-    createLabel(screens[SCREEN_HVAC], "222", 180, 130);
-    createLabel(screens[SCREEN_HVAC], "2", 180, 145);
-    createLabel(screens[SCREEN_HVAC], "222", 180, 160);
+    // Large target temperature display in center - show current target temp
+    hvacElements.targetTempValueLabel = lv_label_create(screens[SCREEN_HVAC]);
+    char tempStr[8];
+    snprintf(tempStr, sizeof(tempStr), "%.0f", hvacState.targetTemp);
+    lv_label_set_text(hvacElements.targetTempValueLabel, tempStr);
+    lv_obj_set_pos(hvacElements.targetTempValueLabel, 220, 100);
+    lv_obj_set_style_text_color(hvacElements.targetTempValueLabel, lv_color_white(), 0);
+    lv_obj_set_style_text_font(hvacElements.targetTempValueLabel, &montserrat_96, 0);
     
-    // Create HUGE "22" using ASCII art - Second digit "2"
-    createLabel(screens[SCREEN_HVAC], "222", 250, 100);
-    createLabel(screens[SCREEN_HVAC], "  2", 250, 115);
-    createLabel(screens[SCREEN_HVAC], "222", 250, 130);
-    createLabel(screens[SCREEN_HVAC], "2", 250, 145);
-    createLabel(screens[SCREEN_HVAC], "222", 250, 160);
-    
-    // Use one of the labels as reference for updates
-    hvacElements.targetTempValueLabel = createLabel(screens[SCREEN_HVAC], "", 0, 0);
-    lv_obj_add_flag(hvacElements.targetTempValueLabel, LV_OBJ_FLAG_HIDDEN);
-    
-    Serial.println("HVAC screen created with HUGE ASCII art temperature");
+    Serial.println("HVAC screen created with large temperature display");
+    Serial.print("Initial target temp: ");
+    Serial.println(hvacState.targetTemp);
 }
 
 lv_obj_t* ScreenManager::createButton(lv_obj_t* parent, const char* text, lv_coord_t x, lv_coord_t y, lv_coord_t w, lv_coord_t h) {
@@ -259,9 +260,12 @@ void ScreenManager::updateHVACStatus() {
             lv_obj_set_style_bg_color(hvacElements.coolButton, lv_color_hex(0x333333), 0);
         }
         
-        // ASCII art temperature is static for now - would need complex redrawing for dynamic updates
-        Serial.print("Temperature: ");
-        Serial.println(hvacState.targetTemp);
+        // Update the target temperature display
+        if (hvacElements.targetTempValueLabel) {
+            char tempStr[8];
+            snprintf(tempStr, sizeof(tempStr), "%.0f", hvacState.targetTemp);
+            lv_label_set_text(hvacElements.targetTempValueLabel, tempStr);
+        }
     }
 }
 
@@ -320,23 +324,55 @@ void ScreenManager::hvacCoolButtonEvent(lv_event_t* e) {
 }
 
 void ScreenManager::hvacTempUpButtonEvent(lv_event_t* e) {
+    float currentTemp = hvacState.targetTemp;
     float newTemp = hvacState.targetTemp + 1.0f;
-    if (newTemp <= MAX_TEMPERATURE) {
+    if (newTemp <= 27) {  // Max temp 27
+        // Update local state immediately
+        hvacState.targetTemp = newTemp;
+        
+        // Send MQTT command
         mqttHandler.setHVACTemperature(newTemp);
         
-        // For now just print to console - will need to redraw ASCII art
-        Serial.print("New temp: ");
-        Serial.println((int)newTemp);
+        // Update the display immediately
+        if (instance && instance->hvacElements.targetTempValueLabel) {
+            char tempStr[8];
+            snprintf(tempStr, sizeof(tempStr), "%.0f", newTemp);
+            lv_label_set_text(instance->hvacElements.targetTempValueLabel, tempStr);
+        }
+        
+        // Debug output
+        Serial.print("HVAC Temp UP pressed: ");
+        Serial.print(currentTemp);
+        Serial.print(" -> ");
+        Serial.println(newTemp);
+    } else {
+        Serial.println("Cannot go higher than 27°");
     }
 }
 
 void ScreenManager::hvacTempDownButtonEvent(lv_event_t* e) {
+    float currentTemp = hvacState.targetTemp;
     float newTemp = hvacState.targetTemp - 1.0f;
-    if (newTemp >= MIN_TEMPERATURE) {
+    if (newTemp >= 16) {  // Min temp 16
+        // Update local state immediately
+        hvacState.targetTemp = newTemp;
+        
+        // Send MQTT command
         mqttHandler.setHVACTemperature(newTemp);
         
-        // For now just print to console - will need to redraw ASCII art
-        Serial.print("New temp: ");
-        Serial.println((int)newTemp);
+        // Update the display immediately
+        if (instance && instance->hvacElements.targetTempValueLabel) {
+            char tempStr[8];
+            snprintf(tempStr, sizeof(tempStr), "%.0f", newTemp);
+            lv_label_set_text(instance->hvacElements.targetTempValueLabel, tempStr);
+        }
+        
+        // Debug output
+        Serial.print("HVAC Temp DOWN pressed: ");
+        Serial.print(currentTemp);
+        Serial.print(" -> ");
+        Serial.println(newTemp);
+    } else {
+        Serial.println("Cannot go lower than 16°");
     }
 }
