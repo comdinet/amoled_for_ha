@@ -5,8 +5,9 @@
 #include "config.h"
 
 bool initDisplay();
-void displayFlush(lv_display_t *display, const lv_area_t *area, uint8_t *color_p);
-void touchRead(lv_indev_t *indev_drv, lv_indev_data_t *data);
+void lvgl_tick_task(void);  // Call this regularly from main loop
+void displayFlushCb(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p);
+void touchReadCb(lv_indev_drv_t *indev_drv, lv_indev_data_t *data);
 
 #if EXAMPLE_USE_TOUCH
 bool initTouch();

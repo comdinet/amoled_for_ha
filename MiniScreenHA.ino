@@ -7,6 +7,19 @@
 #include "mqtt_handler.h"
 #include "screen_manager.h"
 
+// Define the arrays that are declared extern in config.h
+const char* SCREEN_NAMES[] = {
+    "Light Control",
+    "HVAC Control"
+};
+
+const char* HVAC_MODES[] = {
+    "off",
+    "heat", 
+    "cool",
+    "auto"
+};
+
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 ScreenManager screenManager;
@@ -16,6 +29,8 @@ unsigned long lastWiFiReconnectAttempt = 0;
 unsigned long lastMQTTReconnectAttempt = 0;
 unsigned long lastStatusUpdate = 0;
 bool isConnected = false;
+
+// Note: LVGL locking is now handled internally by display_init.cpp
 
 void setup() {
     Serial.begin(115200);
@@ -56,7 +71,8 @@ void setup() {
 void loop() {
     unsigned long currentTime = millis();
     
-    lv_timer_handler();
+    // Handle LVGL timing
+    lvgl_tick_task();
     
     if (WiFi.status() != WL_CONNECTED) {
         isConnected = false;
@@ -95,7 +111,7 @@ void loop() {
     }
     
     screenManager.update();
-    delay(5);
+    delay(10); // Increased delay since LVGL now runs in its own task
 }
 
 void connectWiFi() {
